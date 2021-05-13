@@ -450,12 +450,14 @@ contract SocialCoin is Context, IBEP20, Ownable {
 
     mapping (address => bool) private _isExcluded;
     mapping (address => bool) private _isCharity;
+    mapping (address => bool) private _isTaxes;
     address[] private _excluded;
     
     string  private _NAME;
     string  private _SYMBOL;
     uint256   private _DECIMALS;
-	address public FeeAddress;
+	address public TaxAddress;
+	address public CharityAddress;
    
     uint256 private _MAX = ~uint256(0);
     uint256 private _DECIMALFACTOR;
@@ -477,7 +479,7 @@ contract SocialCoin is Context, IBEP20, Ownable {
     uint256 private ORIG_BURN_FEE;
     uint256 private ORIG_CHARITY_FEE;
 
-    constructor (string memory _name, string memory _symbol, uint256 _decimals, uint256 _supply, uint256 _txFee,uint256 _burnFee,uint256 _charityFee,address _FeeAddress,address tokenOwner) {
+    constructor (string memory _name, string memory _symbol, uint256 _decimals, uint256 _supply, uint256 _txFee,uint256 _burnFee,uint256 _charityFee,address _CharityAddress,address _TaxAddress,address tokenOwner) {
 		_NAME = _name;
 		_SYMBOL = _symbol;
 		_DECIMALS = _decimals;
@@ -490,8 +492,10 @@ contract SocialCoin is Context, IBEP20, Ownable {
 		ORIG_TAX_FEE = _TAX_FEE;
 		ORIG_BURN_FEE = _BURN_FEE;
 		ORIG_CHARITY_FEE = _CHARITY_FEE;
-		_isCharity[_FeeAddress] = true;
-		FeeAddress = _FeeAddress;
+		_isCharity[_CharityAddress] = true;
+		CharityAddress = _CharityAddress;
+		_isTaxes[_TaxAddress] = true;
+		TaxAddress = _TaxAddress;
 		_owner = tokenOwner;
         _rOwned[tokenOwner] = _rTotal;
 		
@@ -557,6 +561,10 @@ contract SocialCoin is Context, IBEP20, Ownable {
         return _isCharity[account];
     }
 
+    function isTaxes(address account) public view returns (bool) {
+        return _isTaxes[account];
+    }
+    
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
@@ -620,7 +628,13 @@ contract SocialCoin is Context, IBEP20, Ownable {
     function setAsCharityAccount(address account) external onlyOwner() {
         require(!_isCharity[account], "Account is already charity account");
         _isCharity[account] = true;
-		FeeAddress = account;
+		CharityAddress = account;
+    }
+    
+    function setAsTaxesAccount(address account) external onlyOwner() {
+        require(!_isTaxes[account], "Account is already taxes account");
+        _isTaxes[account] = true;
+		TaxAddress = account;
     }
 
 	function burn(uint256 _value) public{
@@ -826,17 +840,17 @@ contract SocialCoin is Context, IBEP20, Ownable {
     function _sendToCharity(uint256 tCharity, address sender) private {
         uint256 currentRate = _getRate();
         uint256 rCharity = tCharity.mul(currentRate);
-        _rOwned[FeeAddress] = _rOwned[FeeAddress].add(rCharity);
-        _tOwned[FeeAddress] = _tOwned[FeeAddress].add(tCharity);
-        emit Transfer(sender, FeeAddress, tCharity);
+        _rOwned[CharityAddress] = _rOwned[CharityAddress].add(rCharity);
+        _tOwned[CharityAddress] = _tOwned[CharityAddress].add(tCharity);
+        emit Transfer(sender, CharityAddress, tCharity);
     }
     
     function _sendToTax(uint256 tFee, address sender) private {
         uint256 currentRate = _getRate();
         uint256 rFee = tFee.mul(currentRate);
-        _rOwned[FeeAddress] = _rOwned[FeeAddress].add(rFee);
-        _tOwned[FeeAddress] = _tOwned[FeeAddress].add(tFee);
-        emit Transfer(sender, FeeAddress, tFee);
+        _rOwned[TaxAddress] = _rOwned[TaxAddress].add(rFee);
+        _tOwned[TaxAddress] = _tOwned[TaxAddress].add(tFee);
+        emit Transfer(sender, TaxAddress, tFee);
     }
 
     function removeAllFee() private {
